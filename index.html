@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Drawing</title>
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+    <canvas id="drawingCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('drawingCanvas');
+        const context = canvas.getContext('2d');
+        let drawing = false;
+
+        const ws = new WebSocket('ws://localhost:8080');
+
+        // Handle incoming WebSocket messages
+        ws.onmessage = (event) => {
+            console.log('Message received.')
+            const data = JSON.parse(event.data);
+            drawLine(data.x0, data.y0, data.x1, data.y1, data.color);
+        };
+
+        // Start drawing when the mouse is pressed
+        canvas.onmousedown = (e) => {
+            drawing = true;
+            [prevX, prevY] = [e.offsetX, e.offsetY];
+        };
+
+        // Draw when the mouse is moved
+        canvas.onmousemove = (e) => {
+            if (!drawing) return;
+            const [x, y] = [e.offsetX, e.offsetY];
+            drawLine(prevX, prevY, x, y, 'black', true);
+            [prevX, prevY] = [x, y];
+        };
+
+        // Stop drawing when the mouse is released
+        canvas.onmouseup = () => {
+            drawing = false;
+        };
+
+        // Draw a line on the canvas
+        function drawLine(x0, y0, x1, y1, color, emit = false) {
+            context.beginPath();
+            context.moveTo(x0, y0);
+            context.lineTo(x1, y1);
+            context.strokeStyle = color;
+            context.lineWidth = 2;
+            context.stroke();
+            context.closePath();
+
+            if (!emit) return;
+            const data = { x0, y0, x1, y1, color };
+            ws.send(JSON.stringify(data));
+        }
+    </script>
+</body>
+</html>
